@@ -150,18 +150,22 @@ def plot_trial(trial_data, color_palette, show_plot=False):
 
     return fig
 
-def plot_custom_violin(y_data, colors, mean_color, x_label, y_label, x_categories, hlines = None, ylims = [0,2], p_value = 1.0, bar_offset = 0.1):
+def plot_custom_violin(y_data: List[np.array], colors: List[str], mean_color, x_label, y_label, x_categories: List[str], background_color: str = "white", hlines: Optional[List[float]] = None, ylims: List[float] = [0,2], p_value = 1.0, bar_offset = 0.1, ax: Optional[Axes]=None, label_fontsize: int = 18,
+    tick_fontsize: int = 15):
     # Create jittered version of "x" (which is only 0, 1)
     positions = list(range(len(y_data)))
     jitter = 0.04
     x_data = [np.array([i] * len(d)) for i, d in enumerate(y_data)]
     x_jittered = [x + t_distribution(df=6, scale=jitter).rvs(len(x)) for x in x_data]
 
-    fig, ax = plt.subplots(figsize=(8, 12))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 12))
+    else:
+        fig = ax.figure
 
     # Background color
-    fig.patch.set_facecolor("#fbf9f4")
-    ax.set_facecolor("#fbf9f4")
+    fig.patch.set_facecolor(background_color)
+    ax.set_facecolor(background_color)
 
     # Add horizontal lines for reference ---------------------------------------------------
     if hlines:
@@ -267,13 +271,13 @@ def plot_custom_violin(y_data, colors, mean_color, x_label, y_label, x_categorie
     ax.tick_params(length=0)
     if hlines:
         ax.set_yticks(hlines)
-        ax.set_yticklabels(hlines, size=15)
-    ax.set_ylabel(y_label, size=18)
+        ax.set_yticklabels(hlines, size=tick_fontsize)
+    ax.set_ylabel(y_label, size=label_fontsize)
 
     # xlabels accounts for the sample size for each species
     ax.set_xticks(positions)
-    ax.set_xticklabels(x_categories, size=15, ha="center", ma="center")
-    ax.set_xlabel(x_label, size=18)
+    ax.set_xticklabels(x_categories, size=tick_fontsize, ha="center", ma="center")
+    ax.set_xlabel(x_label, size=label_fontsize)
 
     return fig, ax
 
