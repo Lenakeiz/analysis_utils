@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import statsmodels.api as sm
+from typing import List, Optional, Union, Tuple
+from matplotlib.axes import Axes
 from scipy.stats import probplot
 from scipy.stats import t as t_distribution
 from scipy.stats import vonmises
