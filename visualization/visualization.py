@@ -44,6 +44,7 @@ def draw_circular_arrow(ax, arc_center, radius, starting_direction, arc_angle, i
                             color=color, arrowstyle='-|>', mutation_scale=arrowhead_size, label=arc_label)
     ax.add_patch(arrow)
 
+# Plotting the trial with CCQ naming convention
 def plot_trial(trial_data, color_palette, show_plot=False):
     
     starting_marker_size = 8
