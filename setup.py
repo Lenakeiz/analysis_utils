@@ -7,6 +7,10 @@ setup(
     install_requires=[
         'numpy',
         'scikit-learn',
-        'matplotlib'
+        'matplotlib',
+        'pandas',
+        'seaborn',
+        'statsmodels',
+        'scipy'
     ],
 )
