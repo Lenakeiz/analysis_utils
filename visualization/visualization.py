@@ -9,13 +9,15 @@ from matplotlib.axes import Axes
 from scipy.stats import probplot
 from scipy.stats import t as t_distribution
 from scipy.stats import vonmises
+from matplotlib.collections import LineCollection
+import matplotlib.colors as mcolors
 
 from matplotlib.patches import Arc, FancyArrowPatch, Patch
 from shared_utils.utils.math_utils import rotate_vector
 from shared_utils.utils.math_utils import normalize_vector
 from shared_utils.utils.math_utils import calculate_unsigned_angle
 
-def draw_circular_arrow(ax, arc_center, radius, starting_direction, arc_angle, is_rotation_clockwise, color, arrowhead_size, arc_line_width, arc_label=None):
+def draw_circular_arrow(ax, arc_center, radius, starting_direction, arc_angle, is_rotation_clockwise, color, arrowhead_size, arc_line_width, arc_label=None, zorder=1):
     # Calculate the end angle
     start_angle = np.degrees(np.arctan2(starting_direction[1], starting_direction[0]))
     end_angle = start_angle + (arc_angle if is_rotation_clockwise == False else -arc_angle)
@@ -27,7 +29,7 @@ def draw_circular_arrow(ax, arc_center, radius, starting_direction, arc_angle, i
     else:
         arc_start_angle = start_angle
         arc_end_angle = end_angle
-    arc = Arc(arc_center, width=radius, height=radius, angle=0, theta1=arc_start_angle, theta2=arc_end_angle, color=color, lw=arc_line_width)
+    arc = Arc(arc_center, width=radius, height=radius, angle=0, theta1=arc_start_angle, theta2=arc_end_angle, color=color, lw=arc_line_width, zorder=zorder)
     ax.add_patch(arc)
 
     # Calculate the position and direction for the arrowhead at the end of the arc
@@ -41,15 +43,17 @@ def draw_circular_arrow(ax, arc_center, radius, starting_direction, arc_angle, i
 
     # Draw the arrowhead at the end of the arc
     arrow = FancyArrowPatch((arrow_x, arrow_z), (arrow_x + 0.1 * tangent_direction[0], arrow_z + 0.1 * tangent_direction[1]), 
-                            color=color, arrowstyle='-|>', mutation_scale=arrowhead_size, label=arc_label)
+                            color=color, arrowstyle='-|>', mutation_scale=arrowhead_size, label=arc_label, zorder=zorder)
     ax.add_patch(arrow)
 
 # Plotting the trial with CCQ naming convention
-def plot_trial(trial_data, color_palette, show_plot=False):
+def plot_trial(trial_data, color_palette, show_plot=False, tracking_data=None):
     
     starting_marker_size = 8
     walking_head_width = 0.15
     walking_line_width = 2
+    tracking_line_width = 2
+    tracking_line_alpha = 0.5
 
     starting_position_color = color_palette[0]
 
@@ -71,6 +75,30 @@ def plot_trial(trial_data, color_palette, show_plot=False):
     text_font_size_title = 16
 
     fig, ax = plt.subplots(figsize=(10,10))
+
+    # If tracking data is provided, plot it first so it appears in the background
+    if tracking_data is not None:
+        # Filter tracking data between timeAtReachedReposition and timeAtEndProductionDistance
+        mask = (tracking_data['timestamp'] >= trial_data['timeAtReachedReposition']) & \
+               (tracking_data['timestamp'] <= trial_data['timeAtEndProductionDistance'])
+        filtered_tracking = tracking_data[mask]
+
+         # Create points for the line segments
+        points = np.array([filtered_tracking['position_x'], filtered_tracking['position_z']]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        
+        # Create a gradient colormap from light gray to dark gray
+        n_segments = len(segments)
+        cmap = mcolors.LinearSegmentedColormap.from_list("", ["#EEEEEE", "#333333"])
+        norm = plt.Normalize(0, n_segments)
+        colors = [cmap(norm(i)) for i in range(n_segments)]
+        
+        # Create the line collection
+        lc = LineCollection(segments, colors=colors, linewidth=tracking_line_width, alpha=0.7, zorder=1)
+        ax.add_collection(lc)
+        
+        # Add a single legend entry for the tracking data
+        ax.plot([], [], color='gray', linewidth=tracking_line_width, alpha=tracking_line_alpha, label='Tracking Data')
 
     # plotting the starting position
     ax.plot(trial_data['startingCorner_x'], trial_data['startingCorner_z'], 
@@ -154,7 +182,7 @@ def plot_trial(trial_data, color_palette, show_plot=False):
     return fig
 
 def plot_custom_violin(y_data: List[np.array], colors: List[str], mean_color, x_label, y_label, x_categories: List[str], background_color: str = "white", hlines: Optional[List[float]] = None, ylims: List[float] = [0,2], p_value = 1.0, bar_offset = 0.1, ax: Optional[Axes]=None, label_fontsize: int = 18,
-    tick_fontsize: int = 15):
+    tick_fontsize: int = 15, show_mean_labels: bool = True):
     # Create jittered version of "x" (which is only 0, 1)
     positions = list(range(len(y_data)))
     jitter = 0.04
@@ -225,24 +253,25 @@ def plot_custom_violin(y_data: List[np.array], colors: List[str], mean_color, x_
         # Add dot representing the mean
         ax.scatter(i, mean, s=250, color=mean_color, zorder=3)
 
-        # Add line connecting mean value and its label
-        ax.plot([i, i + 0.25], [mean, mean], ls="dashdot", color="black", zorder=3)
+        if show_mean_labels:
+            # Add line connecting mean value and its label
+            ax.plot([i, i + 0.25], [mean, mean], ls="dashdot", color="black", zorder=3)
 
-        # Add mean value label.
-        ax.text(
-            i + 0.25,
-            mean,
-            r"$\hat{\mu}_{\rm{mean}} = $" + str(round(mean, 2)),
-            fontsize=13,
-            va="center",
-            bbox=dict(
-                facecolor="white",
-                edgecolor="black",
-                boxstyle="round",
-                pad=0.15
-            ),
-            zorder=10  # to make sure the line is on top
-        )
+            # Add mean value label.
+            ax.text(
+                i + 0.25,
+                mean,
+                r"$\hat{\mu}_{\rm{mean}} = $" + str(round(mean, 2)),
+                fontsize=13,
+                va="center",
+                bbox=dict(
+                    facecolor="white",
+                    edgecolor="black",
+                    boxstyle="round",
+                    pad=0.15
+                ),
+                zorder=10  # to make sure the line is on top
+            )
 
     # Adding p values ----------------------------------
     if(p_value < 0.05):
