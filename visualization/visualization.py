@@ -361,21 +361,22 @@ def plot_correlation_model(data_df, model_r2, real_data, prediction_data, real_d
             plt.savefig(plot_filename)
             plt.close()
 
-    fig, ax = plt.subplots(figsize=(8, 8))
+    # Publication-ready figure size (reduced from 8x8 to 4x4)
+    fig, ax = plt.subplots(figsize=(4, 4), dpi=300)
     for i , (subject_id, group) in enumerate(grouped):
         color = scatter_color if scatter_color is not None else colors[i]
         # Add to cumulative plot
-        plt.scatter(group[real_data], group[prediction_data], alpha=0.2, color=color)
+        plt.scatter(group[real_data], group[prediction_data], alpha=0.2, color=color, s=10)
         
         # Fit a linear regression line (soft gray)
-        coeffs = np.polyfit(group[real_data], group[prediction_data], 1)
-        poly_eq = np.poly1d(coeffs)
-        plt.plot(group[real_data], poly_eq(group[real_data]), color=soft_gray, linewidth=1.5, alpha=0.5)
+        #coeffs = np.polyfit(group[real_data], group[prediction_data], 1)
+        #poly_eq = np.poly1d(coeffs)
+       # plt.plot(group[real_data], poly_eq(group[real_data]), color=soft_gray, linewidth=1.5, alpha=0.5)
 
     production_min = data_df[real_data].min()
     production_max = data_df[real_data].max()
     # Dashed y=x line (medium gray)
-    plt.plot([0, production_max], [0, production_max], '--', color=medium_gray, linewidth=3.5, label='(y = x)', alpha=0.5)
+    plt.plot([0, production_max], [0, production_max], '--', color=medium_gray, linewidth=1.5, label='(y = x)', alpha=0.5)
 
     # Fit overall regression line and calculate confidence intervals
     X = sm.add_constant(data_df[real_data])
@@ -388,26 +389,30 @@ def plot_correlation_model(data_df, model_r2, real_data, prediction_data, real_d
     pred = model.get_prediction(X_range).summary_frame()
 
     # Grand mean line (black) and confidence interval (dark gray)
-    plt.plot(production_angle_range, pred['mean'], color=black, linewidth=3.0, alpha=0.85, label='mean regression')
+    plt.plot(production_angle_range, pred['mean'], color=black, linewidth=1.5, alpha=0.85, label='mean regression')
     plt.fill_between(production_angle_range, 
                     pred['mean_ci_lower'], 
                     pred['mean_ci_upper'],
                     color=dark_gray, alpha=0.85, label=f'95% ci')
 
-    custom_label = f'mean $R^2 = {model_r2:.2f}$'
+    custom_label = f'$R^2 = {model_r2:.2f}$'
 
     # Finalize cumulative plot
     ax.set_aspect('equal', adjustable='box')  # adjustable='box' ensures the plot box adjusts to the set aspect
     plt.xlim(0,360)
     plt.ylim(ylim)
-    plt.xlabel(real_data_label)
-    plt.ylabel(prediction_data_label)
+    plt.xlabel(real_data_label, fontsize=9)
+    plt.ylabel(prediction_data_label, fontsize=9)
+    ax.tick_params(axis='both', labelsize=8)
     handles, labels = plt.gca().get_legend_handles_labels()
-    handles.append(plt.Line2D([0], [0], color='w', label=custom_label))
-    labels.append(custom_label)
-    plt.legend(handles=handles, frameon=False)
+    plt.legend(handles=handles, frameon=False, fontsize=7, loc='lower right')
+    
+    # Add R² text in the upper center of the figure
+    ax.text(0.5, 0.95, custom_label, transform=ax.transAxes, fontsize=9, 
+            ha='center', va='top')
 
     plt.grid(False)
+    plt.tight_layout()
     return fig, ax
 
 def plot_model_production_angles(data_df, prediction_data, color_palette, dark_color_palette):
