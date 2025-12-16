@@ -327,14 +327,29 @@ def plot_histogram_qqplot(data, variable_name, group):
     plt.tight_layout()
     return fig
 
-def plot_correlation_model(data_df, model_r2, real_data, prediction_data, real_data_label, prediction_data_label, color_palette, output_folder, save_individual_plots=True, ylim = [0,360] ):
+def plot_correlation_model(data_df, model_r2, real_data, prediction_data, real_data_label, prediction_data_label, output_folder, save_individual_plots=True, ylim = [0,360], scatter_color=None, gray_scale=["#d3d3d3", "#999999", "#696969", "#1c1c1c"]):
 
     grouped = data_df.groupby('subject_id')
+    
+    # Fallback to rainbow colormap if scatter_color is not provided
+    if scatter_color is None:
+        cmap = plt.get_cmap('rainbow')
+        values = np.linspace(0, 1, len(grouped))
+        colors = cmap(values)
+    else:
+        colors = None
+
+    # Gray scale colors for regression elements
+    soft_gray = gray_scale[0]      # Individual regression lines
+    medium_gray = gray_scale[1]    # Dashed y=x line
+    dark_gray = gray_scale[2]      # Confidence interval
+    black = gray_scale[3]          # Grand mean line
 
     if save_individual_plots == True:
-        for subject_id, group in grouped:
+        for i, (subject_id, group) in enumerate(grouped):
+            color = scatter_color if scatter_color is not None else colors[i]
             fig, ax = plt.subplots(figsize=(8, 6))
-            plt.scatter(group[real_data], group[prediction_data], alpha=0.7)
+            plt.scatter(group[real_data], group[prediction_data], alpha=0.7, color=color)
             plt.xlabel(real_data_label)
             plt.ylabel(prediction_data_label)
             plt.grid(True)
@@ -346,24 +361,21 @@ def plot_correlation_model(data_df, model_r2, real_data, prediction_data, real_d
             plt.savefig(plot_filename)
             plt.close()
 
-    cmap = plt.get_cmap('rainbow')
-    values = np.linspace(0, 1, len(grouped))
-    colors = cmap(values)
-
     fig, ax = plt.subplots(figsize=(8, 8))
     for i , (subject_id, group) in enumerate(grouped):
-        color = colors[i]
+        color = scatter_color if scatter_color is not None else colors[i]
         # Add to cumulative plot
         plt.scatter(group[real_data], group[prediction_data], alpha=0.2, color=color)
         
-        # Fit a linear regression line
+        # Fit a linear regression line (soft gray)
         coeffs = np.polyfit(group[real_data], group[prediction_data], 1)
         poly_eq = np.poly1d(coeffs)
-        plt.plot(group[real_data], poly_eq(group[real_data]), color=color, linewidth=1.5, alpha=0.2)
+        plt.plot(group[real_data], poly_eq(group[real_data]), color=soft_gray, linewidth=1.5, alpha=0.5)
 
     production_min = data_df[real_data].min()
     production_max = data_df[real_data].max()
-    plt.plot([0, production_max], [0, production_max], 'k--', linewidth=3.5, label='(y = x)', alpha = 0.5)
+    # Dashed y=x line (medium gray)
+    plt.plot([0, production_max], [0, production_max], '--', color=medium_gray, linewidth=3.5, label='(y = x)', alpha=0.5)
 
     # Fit overall regression line and calculate confidence intervals
     X = sm.add_constant(data_df[real_data])
@@ -375,14 +387,12 @@ def plot_correlation_model(data_df, model_r2, real_data, prediction_data, real_d
     X_range = sm.add_constant(production_angle_range)
     pred = model.get_prediction(X_range).summary_frame()
 
-    colorline = color_palette[1]
-    colorCI = color_palette[0]
-
-    plt.plot(production_angle_range, pred['mean'], color=colorline, linewidth=3.0, alpha=0.85, label='mean regression')
+    # Grand mean line (black) and confidence interval (dark gray)
+    plt.plot(production_angle_range, pred['mean'], color=black, linewidth=3.0, alpha=0.85, label='mean regression')
     plt.fill_between(production_angle_range, 
                     pred['mean_ci_lower'], 
                     pred['mean_ci_upper'],
-                    color=colorCI, alpha=0.85, label=f'95% ci')
+                    color=dark_gray, alpha=0.85, label=f'95% ci')
 
     custom_label = f'mean $R^2 = {model_r2:.2f}$'
 
